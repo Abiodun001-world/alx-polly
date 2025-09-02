@@ -1,0 +1,32 @@
+"use client";
+
+import { useAuth } from "@/lib/auth-context";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
+import { Loading } from "@/components/common/loading";
+
+interface AuthGuardProps {
+  children: React.ReactNode;
+  fallback?: React.ReactNode;
+}
+
+export function AuthGuard({ children, fallback }: AuthGuardProps) {
+  const { user, loading } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!loading && !user) {
+      router.push("/login");
+    }
+  }, [user, loading, router]);
+
+  if (loading) {
+    return <Loading />;
+  }
+
+  if (!user) {
+    return fallback || <Loading />;
+  }
+
+  return <>{children}</>;
+}

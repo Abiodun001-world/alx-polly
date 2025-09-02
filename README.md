@@ -36,7 +36,7 @@ A modern polling application built with Next.js 15, TypeScript, Tailwind CSS, an
 
 1. **Clone the repository**
    ```bash
-   git clone <repository-url>
+   git clone https://github.com/Abiodun001-world/alx-polly.git
    cd alx-polly
    ```
 

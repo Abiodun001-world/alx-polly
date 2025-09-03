@@ -1,13 +1,18 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { X, Plus } from "lucide-react";
+import { X, Plus, CheckCircle } from "lucide-react";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 
 export function PollForm() {
+  const router = useRouter();
+  const supabase = createClientComponentClient();
   const [formData, setFormData] = useState({
     title: "",
     description: "",
@@ -15,6 +20,8 @@ export function PollForm() {
     expiresAt: ""
   });
   const [isLoading, setIsLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleOptionChange = (index: number, value: string) => {
     const newOptions = [...formData.options];
@@ -39,14 +46,56 @@ export function PollForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    setError(null);
     
-    // TODO: Implement actual poll creation logic
-    console.log("Creating poll:", formData);
-    
-    // Simulate API call
-    setTimeout(() => {
+    try {
+      // Get the current user
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        throw new Error("You must be logged in to create a poll");
+      }
+      
+      // Insert the poll
+      const { data: pollData, error: pollError } = await supabase
+        .from('polls')
+        .insert({
+          title: formData.title,
+          description: formData.description,
+          expires_at: formData.expiresAt || null,
+          user_id: session.user.id
+        })
+        .select()
+        .single();
+      
+      if (pollError) throw pollError;
+      
+      // Insert the options
+      const optionsToInsert = formData.options
+        .filter(option => option.trim() !== '')
+        .map(option => ({
+          poll_id: pollData.id,
+          text: option,
+        }));
+      
+      const { error: optionsError } = await supabase
+        .from('poll_options')
+        .insert(optionsToInsert);
+      
+      if (optionsError) throw optionsError;
+      
+      // Show success message and redirect
+      setSuccess(true);
+      setTimeout(() => {
+        router.push('/polls');
+      }, 2000);
+      
+    } catch (err: any) {
+      console.error("Error creating poll:", err);
+      setError(err.message || "Failed to create poll");
+    } finally {
       setIsLoading(false);
-    }, 1000);
+    }
   };
 
   return (
@@ -58,6 +107,23 @@ export function PollForm() {
         </CardDescription>
       </CardHeader>
       <CardContent>
+        {success && (
+          <Alert className="mb-6 bg-green-50 border-green-200">
+            <CheckCircle className="text-green-500" />
+            <AlertTitle>Success!</AlertTitle>
+            <AlertDescription>
+              Your poll has been created successfully. Redirecting to polls page...
+            </AlertDescription>
+          </Alert>
+        )}
+        
+        {error && (
+          <Alert className="mb-6 bg-red-50 border-red-200" variant="destructive">
+            <AlertTitle>Error</AlertTitle>
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+        
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-2">
             <Label htmlFor="title">Poll Question</Label>
